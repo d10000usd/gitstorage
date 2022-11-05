@@ -1,0 +1,27 @@
+<textarea id="text_field_to_save">Everything from here will be saved</textarea>
+<input type="text" id="filename_to_save_as" value="filename.txt" />
+
+<script>
+function save_text_as_file () {
+    let text_to_save = document.getElementById( 'text_field_to_save' ).value;
+    let text_to_save_as_blob = new Blob( [ text_to_save ], {
+        type: "text/plain"
+    } );
+
+    let text_to_save_as_url = window.URL.createObjectURL( text_to_save_as_blob );
+    let filename_to_save_as = document.getElementById( 'filename_to_save_as' ).value;
+
+    let download_link = document.createElement( 'a' );
+    download_link.download = filename_to_save_as;
+    download_link.innerHTML = 'Download File';
+    download_link.href = text_to_save_as_url;
+    download_link.style.display = 'none';
+    download_link.onclick = function ( event ) {
+        document.body.removeChild( event.target );
+    };
+
+    document.body.appendChild( download_link );
+
+    download_link.click();
+}
+</script>

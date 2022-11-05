@@ -1,0 +1,88 @@
+<p>'Hello, Toast UI Editor. 😋'# Advanced Strategies</p><p><br></p><p>This page explains some advanced concepts available for strategies.</p><p>If you're just getting started, please be familiar with the methods described in the <a href="strategy-customization.md">Strategy Customization</a> documentation and with the <a href="bot-basics.md">Freqtrade basics</a> first.</p><p><br></p><p><a href="bot-basics.md">Freqtrade basics</a> describes in which sequence each method described below is called, which can be helpful to understand which method to use for your custom needs.</p><p><br></p><p>!!! Note</p><p>All callback methods described below should only be implemented in a strategy if they are actually used.</p><p><br></p><p>!!! Tip</p><p>You can get a strategy template containing all below methods by running <code data-backticks="1">freqtrade new-strategy --strategy MyAwesomeStrategy --template advanced</code></p><h2>Storing information</h2><p>Storing information can be accomplished by creating a new dictionary within the strategy class.</p><p><br></p><p>The name of the variable can be chosen at will, but should be prefixed with <code data-backticks="1">cust_</code> to avoid naming collisions with predefined strategy variables.</p><div data-language="python" class="toastui-editor-ww-code-block"><pre><code data-language="python">class AwesomeStrategy(IStrategy):
+    # Create custom dictionary
+    custom_info = {}
+
+    def populate_indicators(self, dataframe: DataFrame, metadata: dict) -&gt; DataFrame:
+        # Check if the entry already exists
+        if not metadata["pair"] in self.custom_info:
+            # Create empty entry for this pair
+            self.custom_info[metadata["pair"]] = {}
+
+        if "crosstime" in self.custom_info[metadata["pair"]]:
+            self.custom_info[metadata["pair"]]["crosstime"] += 1
+        else:
+            self.custom_info[metadata["pair"]]["crosstime"] = 1</code></pre></div><p>!!! Warning</p><p>The data is not persisted after a bot-restart (or config-reload). Also, the amount of data should be kept smallish (no DataFrames and such), otherwise the bot will start to consume a lot of memory and eventually run out of memory and crash.</p><p><br></p><p>!!! Note</p><p>If the data is pair-specific, make sure to use pair as one of the keys in the dictionary.</p><h2>Dataframe access</h2><p>You may access dataframe in various strategy functions by querying it from dataprovider.</p><div data-language="python" class="toastui-editor-ww-code-block"><pre><code data-language="python">from freqtrade.exchange import timeframe_to_prev_date
+
+class AwesomeStrategy(IStrategy):
+    def confirm_trade_exit(self, pair: str, trade: 'Trade', order_type: str, amount: float,
+                           rate: float, time_in_force: str, exit_reason: str,
+                           current_time: 'datetime', **kwargs) -&gt; bool:
+        # Obtain pair dataframe.
+        dataframe, _ = self.dp.get_analyzed_dataframe(pair, self.timeframe)
+
+        # Obtain last available candle. Do not use current_time to look up latest candle, because 
+        # current_time points to current incomplete candle whose data is not available.
+        last_candle = dataframe.iloc[-1].squeeze()
+        # &lt;...&gt;
+
+        # In dry/live runs trade open date will not match candle open date therefore it must be 
+        # rounded.
+        trade_date = timeframe_to_prev_date(self.timeframe, trade.open_date_utc)
+        # Look up trade candle.
+        trade_candle = dataframe.loc[dataframe['date'] == trade_date]
+        # trade_candle may be empty for trades that just opened as it is still incomplete.
+        if not trade_candle.empty:
+            trade_candle = trade_candle.squeeze()
+            # &lt;...&gt;</code></pre></div><p>!!! Warning "Using .iloc[-1]"</p><p>You can use <code data-backticks="1">.iloc[-1]</code> here because <code data-backticks="1">get_analyzed_dataframe()</code> only returns candles that backtesting is allowed to see.</p><p>This will not work in <code data-backticks="1">populate_*</code> methods, so make sure to not use <code data-backticks="1">.iloc[]</code> in that area.</p><p>Also, this will only work starting with version 2021.5.</p><div contenteditable="false"><hr></div><h2>Enter Tag</h2><p>When your strategy has multiple buy signals, you can name the signal that triggered.</p><p>Then you can access you buy signal on <code data-backticks="1">custom_exit</code></p><div data-language="python" class="toastui-editor-ww-code-block"><pre><code data-language="python">def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -&gt; DataFrame:
+    dataframe.loc[
+        (
+            (dataframe['rsi'] &lt; 35) &amp;
+            (dataframe['volume'] &gt; 0)
+        ),
+        ['enter_long', 'enter_tag']] = (1, 'buy_signal_rsi')
+
+    return dataframe
+
+def custom_exit(self, pair: str, trade: Trade, current_time: datetime, current_rate: float,
+                current_profit: float, **kwargs):
+    dataframe, _ = self.dp.get_analyzed_dataframe(pair, self.timeframe)
+    last_candle = dataframe.iloc[-1].squeeze()
+    if trade.enter_tag == 'buy_signal_rsi' and last_candle['rsi'] &gt; 80:
+        return 'sell_signal_rsi'
+    return None
+<br></code></pre></div><p>!!! Note</p><p><code data-backticks="1">enter_tag</code> is limited to 100 characters, remaining data will be truncated.</p><p><br></p><p>!!! Warning</p><p>There is only one <code data-backticks="1">enter_tag</code> column, which is used for both long and short trades.</p><p>As a consequence, this column must be treated as "last write wins" (it's just a dataframe column after all).</p><p>In fancy situations, where multiple signals collide (or if signals are deactivated again based on different conditions), this can lead to odd results with the wrong tag applied to an entry signal.</p><p>These results are a consequence of the strategy overwriting prior tags - where the last tag will "stick" and will be the one freqtrade will use.</p><h2>Exit tag</h2><p>Similar to <a href="#buy-tag">Buy Tagging</a>, you can also specify a sell tag.</p><div data-language="python" class="toastui-editor-ww-code-block"><pre><code data-language="python">def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -&gt; DataFrame:
+    dataframe.loc[
+        (
+            (dataframe['rsi'] &gt; 70) &amp;
+            (dataframe['volume'] &gt; 0)
+        ),
+        ['exit_long', 'exit_tag']] = (1, 'exit_rsi')
+
+    return dataframe</code></pre></div><p>The provided exit-tag is then used as sell-reason - and shown as such in backtest results.</p><p><br></p><p>!!! Note</p><p><code data-backticks="1">exit_reason</code> is limited to 100 characters, remaining data will be truncated.</p><h2>Strategy version</h2><p>You can implement custom strategy versioning by using the "version" method, and returning the version you would like this strategy to have.</p><div data-language="python" class="toastui-editor-ww-code-block"><pre><code data-language="python">def version(self) -&gt; str:
+    """
+    Returns version of the strategy.
+    """
+    return "1.1"</code></pre></div><p>!!! Note</p><p>You should make sure to implement proper version control (like a git repository) alongside this, as freqtrade will not keep historic versions of your strategy, so it's up to the user to be able to eventually roll back to a prior version of the strategy.</p><h2>Derived strategies</h2><p>The strategies can be derived from other strategies. This avoids duplication of your custom strategy code. You can use this technique to override small parts of your main strategy, leaving the rest untouched:</p><div data-language="python title=&quot;user_data/strategies/myawesomestrategy.py&quot;" class="toastui-editor-ww-code-block"><pre><code data-language="python title=&quot;user_data/strategies/myawesomestrategy.py&quot;">class MyAwesomeStrategy(IStrategy):
+    ...
+    stoploss = 0.13
+    trailing_stop = False
+    # All other attributes and methods are here as they
+    # should be in any custom strategy...
+    ...
+<br></code></pre></div><div data-language="python title=&quot;user_data/strategies/MyAwesomeStrategy2.py&quot;" class="toastui-editor-ww-code-block"><pre><code data-language="python title=&quot;user_data/strategies/MyAwesomeStrategy2.py&quot;">from myawesomestrategy import MyAwesomeStrategy
+class MyAwesomeStrategy2(MyAwesomeStrategy):
+    # Override something
+    stoploss = 0.08
+    trailing_stop = True</code></pre></div><p>Both attributes and methods may be overridden, altering behavior of the original strategy in a way you need.</p><p><br></p><p>While keeping the subclass in the same file is technically possible, it can lead to some problems with hyperopt parameter files, we therefore recommend to use separate strategy files, and import the parent strategy as shown above.</p><h2>Embedding Strategies</h2><p>Freqtrade provides you with an easy way to embed the strategy into your configuration file.</p><p>This is done by utilizing BASE64 encoding and providing this string at the strategy configuration field,</p><p>in your chosen config file.</p><h3>Encoding a string as BASE64</h3><p>This is a quick example, how to generate the BASE64 string in python</p><div data-language="python" class="toastui-editor-ww-code-block"><pre><code data-language="python">from base64 import urlsafe_b64encode
+
+with open(file, 'r') as f:
+    content = f.read()
+content = urlsafe_b64encode(content.encode('utf-8'))</code></pre></div><p>The variable 'content', will contain the strategy file in a BASE64 encoded form. Which can now be set in your configurations file as following</p><div data-language="json" class="toastui-editor-ww-code-block"><pre><code data-language="json">"strategy": "NameOfStrategy:BASE64String"</code></pre></div><p>Please ensure that 'NameOfStrategy' is identical to the strategy name!</p><h2>Performance warning</h2><p>When executing a strategy, one can sometimes be greeted by the following in the logs</p><blockquote><p>PerformanceWarning: DataFrame is highly fragmented.</p></blockquote><p>This is a warning from <a href="https://github.com/pandas-dev/pandas"><code data-backticks="1">pandas</code></a> and as the warning continues to say:</p><p>use <code data-backticks="1">pd.concat(axis=1)</code>.</p><p>This can have slight performance implications, which are usually only visible during hyperopt (when optimizing an indicator).</p><p><br></p><p>For example:</p><div data-language="python" class="toastui-editor-ww-code-block"><pre><code data-language="python">for val in self.buy_ema_short.range:
+    dataframe[f'ema_short_{val}'] = ta.EMA(dataframe, timeperiod=val)</code></pre></div><p>should be rewritten to</p><div data-language="python" class="toastui-editor-ww-code-block"><pre><code data-language="python">frames = [dataframe]
+for val in self.buy_ema_short.range:
+    frames.append(DataFrame({
+        f'ema_short_{val}': ta.EMA(dataframe, timeperiod=val)
+    }))
+
+# Append columns to existing dataframe
+merged_frame = pd.concat(frames, axis=1)</code></pre></div><p>Freqtrade does however also counter this by running <code data-backticks="1">dataframe.copy()</code> on the dataframe right after the <code data-backticks="1">populate_indicators()</code> method - so performance implications of this should be low to non-existant.</p>

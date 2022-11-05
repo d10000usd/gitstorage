@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<head>
+  <!-- Toast UI Editor -->
+	<link rel="stylesheet" href="https://uicdn.toast.com/editor/latest/toastui-editor.min.css" />
+</head>
+<body>
+	<h1>Hello ToastUI</h1>
+	<div id="editor"></div>
+	<button onclick="seeHtml()">html보기</button>
+	<button onclick="seeMd()">markdown보기</button>
+ 
+	<script src="https://uicdn.toast.com/editor/latest/toastui-editor-all.min.js">
+
+
+    <link rel="stylesheet" href="https://uicdn.toast.com/tui-color-picker/latest/tui-color-picker.min.css"/>
+  </script>
+  <link rel="stylesheet" href="https://uicdn.toast.com/editor/latest/toastui-editor.min.css">
+<script src="https://uicdn.toast.com/editor/latest/toastui-editor-all.min.js"></script>
+
+<link rel="stylesheet" href="https://uicdn.toast.com/tui-color-picker/latest/tui-color-picker.min.css"/>
+<script src="https://uicdn.toast.com/tui-color-picker/latest/tui-color-picker.min.js"></script>
+
+<link rel="stylesheet" href="https://uicdn.toast.com/editor-plugin-color-syntax/latest/toastui-editor-plugin-color-syntax.min.css"/>
+<script src="https://uicdn.toast.com/editor-plugin-color-syntax/latest/toastui-editor-plugin-color-syntax.min.js"></script>
+	<script>
+    
+
+
+    const editor = new toastui.Editor({
+      el: document.querySelector('#editor'),
+      initialEditType: 'markdown',
+      previewStyle: 'vertical',
+      height: '500px',
+      plugins: [toastui.Editor.plugin.colorSyntax,
+      
+      
+      
+      ]
+    });
+
+     
+
+
+		seeHtml = function(){
+			alert(editor.getHTML());
+		}
+		seeMd = function(){
+			alert(editor.getMarkdown());
+		}
+	</script>
+
+</body>

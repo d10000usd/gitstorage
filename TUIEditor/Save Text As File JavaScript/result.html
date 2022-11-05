@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+
+<head>
+	<!-- Toast UI Editor -->
+	<link rel="stylesheet" href="https://uicdn.toast.com/editor/latest/toastui-editor.min.css" />
+	<style>
+		* {
+			text-align: none;
+		}
+
+		#editor {
+			/* border : 1px solid; */
+			width: 100%;
+			margin: 0 auto;
+		}
+
+		/* !!여기!! 새로운 div태그 스타일 추가해줫습니다. */
+		#contents {
+			width: 50%;
+			height: 100px;
+			margin: 30px auto;
+			border: 1px solid;
+		}
+	</style>
+</head>
+
+<body>
+	<h1>Hello ToastUI</h1>
+	<div id="editor"></div>
+
+	<button onclick="seeHtml()">html보기</button>
+	<button onclick="seeMd()">markdown보기</button>
+
+	<input type="button" value="Save File" onclick="saveFile()"/>
+	<script src="https://uicdn.toast.com/editor/latest/toastui-editor-all.min.js">
+		<link rel="stylesheet" href="https://uicdn.toast.com/tui-color-picker/latest/tui-color-picker.min.css" />
+	</script>
+	<link rel="stylesheet" href="https://uicdn.toast.com/editor/latest/toastui-editor.min.css">
+	<script src="https://uicdn.toast.com/editor/latest/toastui-editor-all.min.js"></script>
+	<link rel="stylesheet" href="https://uicdn.toast.com/tui-color-picker/latest/tui-color-picker.min.css" />
+	<script src="https://uicdn.toast.com/tui-color-picker/latest/tui-color-picker.min.js"></script>
+	<link rel="stylesheet"
+		href="https://uicdn.toast.com/editor-plugin-color-syntax/latest/toastui-editor-plugin-color-syntax.min.css" />
+	<script
+		src="https://uicdn.toast.com/editor-plugin-color-syntax/latest/toastui-editor-plugin-color-syntax.min.js"></script>
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.48.4/codemirror.css">
+
+
+
+	<!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script> -->
+
+	<script>
+		loadingcontent = "'Hello, Toast UI Editor. 😋'"
+		const editor = new toastui.Editor({
+			el: document.querySelector('#editor'),
+			initialEditType: 'markdown',
+			previewStyle: 'vertical',
+			height: '300px',
+			initialValue: loadingcontent,
+
+			plugins: [toastui.Editor.plugin.colorSyntax,
+
+			]
+
+
+		});
+
+		seeHtml = function () {
+			txt = editor.getHTML();
+			saveFile(txt)
+		}
+		seeMd = function () {
+			alert(editor.getMarkdown());
+
+		}
+	 function from_folder_textfileread(){
+		 var file = document.getElementById("file").files[0];
+		 var reader = new FileReader();
+		 reader.onload = function(e) {
+			 var contents = e.target.result;
+			 editor.setMarkdown(contents);
+		 };
+		 reader.readAsText(file);
+	 }
+		
+	</script>
+		<script>
+		async function saveFile(txt) {
+			// (A) CREATE BLOB OBJECT
+			var myBlob = new Blob([txt], {type: "text/plain"});
+		   
+			// (B) FILE HANDLER & FILE STREAM
+			const fileHandle = await window.showSaveFilePicker({
+			  types: [{
+				description: "Text file",
+				accept: {"text/plain": [".html"]}
+			  }]
+			});
+			const fileStream = await fileHandle.createWritable();
+		   
+			// (C) WRITE FILE
+			await fileStream.write(myBlob);
+			await fileStream.close();
+		  }
+	 //code-boxx.com/create-save-files-javascript/ -->
+
+	</script>
+	<script>
+						// (A) CREATE BLOB OBJECT
+		var myBlob = new Blob([editor.getHTML()], {type: "text/plain"});
+
+		// (B) CREATE DOWNLOAD LINK
+		var url = window.URL.createObjectURL(myBlob);
+		var anchor = document.createElement("a");
+		anchor.href = url;
+		anchor.download = "demo.html";
+			
+		// (C) "FORCE DOWNLOAD"
+		// NOTE: MAY NOT ALWAYS WORK DUE TO BROWSER SECURITY
+		// BETTER TO LET USERS CLICK ON THEIR OWN
+		anchor.click();
+		window.URL.revokeObjectURL(url);
+		document.removeChild(anchor);
+
+	</script>
+	<script>
+		function blobajax () {
+		  // (A) CREATE BLOB OBJECT
+		  var myBlob = new Blob(["CONTENT"], {type: "text/plain"});
+		
+		  // (B) FORM DATA
+		  var data = new FormData();
+		  data.append("upfile", myBlob);
+		
+		  // (C) AJAX UPLOAD TO SERVER
+		  fetch("upload.php", {
+			method: "POST",
+			body: data
+		  })
+		  .then((res) => { return res.text(); })
+		  .then((txt) => { console.log(txt); });
+		}
+		</script>
+	<br>
+	<input type="button" value="Go" onclick="blobajax()"/>
+	<input type="file" id="file-selector" multiple>
+</body>
